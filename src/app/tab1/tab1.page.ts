@@ -64,7 +64,8 @@ export class Tab1Page {
   }
 
   async ionViewWillEnter(){
-    this.structureId = await this.pdbFocusService.getFocus()
+    this.structureId = this.pdbFocusService.getFocus()
+    await this.favoriteService.whenReady()
     await this.requestPDB()
     await this._checkIfCurrentIsFavorite()
   }
@@ -252,20 +253,20 @@ export class Tab1Page {
     }
   }
 
-  addFavorite(){
+  async addFavorite(){
     this.favorite = true
-    this.favoriteService.addFavorite({
+    await this.favoriteService.addFavorite({
       id: this.structureId,
       title: this.structureTitle,
       desc: this.structureDesc})
   }
 
-  removeFavorite(){
+  async removeFavorite(){
     this.favorite = false
-    this.favoriteService.removeFavorite(({
+    await this.favoriteService.removeFavorite({
       id: this.structureId,
       title: this.structureTitle,
-      desc: this.structureDesc}))
+      desc: this.structureDesc})
   }
 
   async presentNoInternet () {

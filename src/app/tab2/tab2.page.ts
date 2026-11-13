@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import {FavoriteService} from '../services/favorite.service'
 import {PdbfocusService} from '../services/pdbfocus.service'
+import {Pdb} from '../data/pdb'
 import { Router } from '@angular/router';
 import { AdMob } from '@admob-plus/ionic/ngx';
 import { Platform } from '@ionic/angular';
@@ -12,7 +13,7 @@ import { Platform } from '@ionic/angular';
 })
 export class Tab2Page {
   
-  favorites
+  favorites: Pdb[] = []
   empty:boolean = true
   //for admob
   admobBanner
@@ -57,17 +58,18 @@ export class Tab2Page {
 
   }
 
-  ionViewWillEnter(){
+  async ionViewWillEnter(){
     if(this.admobSetup){
-      this.admobBanner.show()
+      this.admobBanner?.show()
     }
+    await this.favoriteService.whenReady()
     this.favorites = this.favoriteService.getFavorites()
     this.empty = this.favorites.length == 0
   }
-  removeFavorite(favorite){
-    console.log(favorite)
-    this.favoriteService.removeFavorite(favorite)
+  async removeFavorite(favorite: Pdb){
+    await this.favoriteService.removeFavorite(favorite)
     this.favorites = this.favoriteService.getFavorites()
+    this.empty = this.favorites.length == 0
   }
   load(favorite){
     this.pdbFocusService.setFocus(favorite.id)
@@ -75,8 +77,7 @@ export class Tab2Page {
   }
 
   ionViewWillLeave(){
-    this.admobBanner.hide()
-    console.log("leaving")
+    this.admobBanner?.hide()
   }
 
 }
