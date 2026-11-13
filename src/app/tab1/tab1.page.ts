@@ -73,41 +73,41 @@ export class Tab1Page {
     this._checkIfCurrentIsFavorite()
   }
 
-  async search(event,first){
+  async search(event, first: boolean){
     this.loading = true
     this.keyboard.hide()
-    var results = await this.pdbminer.lookFor(this.searchQuery).then(response =>{
-        console.log(response)
-        if(response == null){
-          if(first){
-            setTimeout(() => {this.search(event,false)}, 3000);
-          }
-          else{
-            this.loading = false
-            this.presentNoProtein()
-          }
-        }
-        this.results = response
-        this.totalPdbs = this.results.result_set.length
-        this.currentPdb = 1
-        this.structureId = this.results.result_set[0].identifier
-        this._checkIfCurrentIsFavorite()
-        this.pdbFocusService.setFocus(this.structureId)
-        this.requestPDB()
-        this.preset()
-        this.loading = false
-      }
-      ,err =>{
-        console.log(err)
-        if(err.status == 400){
-          this.presentNoProtein()
+    try {
+      const response: any = await this.pdbminer.lookFor(this.searchQuery)
+      if(!response || !response.result_set || response.result_set.length === 0){
+        if(first){
+          setTimeout(() => {this.search(event,false)}, 3000);
         }
         else{
-          this.presentNoInternet()
+          await this.presentNoProtein()
         }
-      });
+        return
+      }
+      this.results = response
+      this.totalPdbs = response.result_set.length
+      this.currentPdb = 1
+      this.structureId = response.result_set[0].identifier
+      this.pdbFocusService.setFocus(this.structureId)
+      await this.requestPDB()
+      await this._checkIfCurrentIsFavorite()
+    }
+    catch(err){
+      if(err && err.status == 400){
+        await this.presentNoProtein()
+      }
+      else{
+        await this.presentNoInternet()
+      }
+    }
+    finally {
+      this.loading = false
       this._popSearch()
     }
+  }
     
 
   _popSearch(){
@@ -152,59 +152,61 @@ export class Tab1Page {
     return newTitle
   }
 
-  async requestPDB(){
-    this.loading = true 
-    var xhr = new XMLHttpRequest();
-    console.log('https://files.rcsb.org/view/'+  this.structureId +'.pdb')
+  requestPDB(): Promise<void> {
+    this.loading = true
+    return new Promise(resolve => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('GET', 'https://files.rcsb.org/view/' + this.structureId + '.pdb')
 
-    xhr.open('GET', 'https://files.rcsb.org/view/'+  this.structureId +'.pdb');
-
-    xhr.setRequestHeader('Content-type', 'application/x-pdb');
-
-    var self = this
-    xhr.onreadystatechange = await function() {
-      if (xhr.readyState == 4) {
+      xhr.onload = () => {
         try{
-          let splitResponse = xhr.responseText.split('\n')
+          if(xhr.status < 200 || xhr.status >= 300){
+            throw new Error('HTTP ' + xhr.status)
+          }
+          const splitResponse = xhr.responseText.split('\n')
           //need to write a custom rebuilder
-          self.structureTitle = self._removeDateFromTitle(self.cleanPDBInfo(splitResponse[0]))
-          self.structureDesc = self.cleanPDBInfo(splitResponse[1])
+          this.structureTitle = this._removeDateFromTitle(this.cleanPDBInfo(splitResponse[0]))
+          this.structureDesc = this.cleanPDBInfo(splitResponse[1])
           //----
-          self.structure = pv.io.pdb(xhr.responseText);
-          self.preset();
-          self.loading = false
+          this.structure = pv.io.pdb(xhr.responseText)
+          this.preset()
         }
         catch{
-          self.loading = false
-          console.log("broken")
-          self.presentNoInternet()
+          this.presentNoInternet()
+        }
+        finally {
+          this.loading = false
+          resolve()
         }
       }
-    }
-    xhr.send()
-    }
 
-  nextPdb(){
+      xhr.onerror = () => {
+        this.loading = false
+        this.presentNoInternet()
+        resolve()
+      }
+
+      xhr.send()
+    })
+  }
+
+  async nextPdb(){
     if(this.currentPdb < this.totalPdbs){
       this.currentPdb += 1
       this.structureId = this.results.result_set[this.currentPdb-1].identifier
-      this._checkIfCurrentIsFavorite()
       this.pdbFocusService.setFocus(this.structureId)
-      this.requestPDB()
-      this.preset()
+      await this.requestPDB()
+      await this._checkIfCurrentIsFavorite()
     }
-    this._checkIfCurrentIsFavorite()
   }
-  prevPdb(){
+  async prevPdb(){
     if(this.currentPdb > 1){
       this.currentPdb -= 1
       this.structureId = this.results.result_set[this.currentPdb-1].identifier
-      this._checkIfCurrentIsFavorite()
       this.pdbFocusService.setFocus(this.structureId)
-      this.requestPDB()
-      this.preset()
+      await this.requestPDB()
+      await this._checkIfCurrentIsFavorite()
     }
-    this._checkIfCurrentIsFavorite()
   }
 
   preset() {
@@ -237,8 +239,8 @@ export class Tab1Page {
     try{
     this.viewer.lines('structure', this.structure);
     }
-    catch{
-      document.getElementById("noS").style.visibility = "visible"
+    catch(error){
+      console.error('Unable to render structure', error)
     }
   }
 
@@ -247,8 +249,8 @@ export class Tab1Page {
     try{
     this.viewer.spheres('structure', this.structure);
     }
-    catch{
-      document.getElementById("noS").style.visibility = "visible"
+    catch(error){
+      console.error('Unable to render structure', error)
     }
   }
 
