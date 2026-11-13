@@ -1,68 +1,48 @@
-<ion-header [translucent]="true">
-</ion-header>
-
-<!-- ion-content -->
 <ion-content [fullscreen]="true" slot="fixed">
-  <!-- protien viewer -->
+  <!-- protein viewer -->
   <div id="viewer"></div>
+
   <!-- loading image -->
-  <img *ngIf="loading" class="loading" src= "../../assets/perselogo.png">
-  <!-- user interface -->
-  <ion-grid id= "options" slot="fixed">
-    <ion-row>
-      <ion-col>
-        <ion-button solid outline (click)="cartoon()" size="medium" color="tertiary">Cartoon</ion-button>
-      </ion-col>
-    </ion-row>
-    <ion-row>
-      <ion-col>
-        <ion-button class = "button" solid outline (click)="lines()" size="medium" color="tertiary">Lines</ion-button>
-      </ion-col>
-      </ion-row>
-    <ion-row>
-      <ion-col>
-        <ion-button class = "button" ion-button solid outline (click)="spheres()" size="medium" color="tertiary">Spheres</ion-button>
-      </ion-col>
-    </ion-row>
-    <ion-row>
-      <ion-col>
-        <ion-button class = "button" ion-button solid outline (click)="ballsAndSticks()"size="medium" color="tertiary">Balls and Sticks</ion-button>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <img *ngIf="loading" class="loading" src="../../assets/perselogo.png" alt="Loading structure" />
 
-  <ion-grid id="navigate" slot="fixed">
-    <ion-row id="navigate-row">
-        <ion-col>
-            <ion-button color="tertiary" id="next" (click)="prevPdb()" class = "button" > < </ion-button>
-        </ion-col>
-        <ion-col>
-            <h1 style="color: black;" id = "counter">{{currentPdb}}/{{totalPdbs}}</h1>
-        </ion-col>
-        <ion-col>
-            <ion-button color="tertiary" (click)="this.nextPdb()" id="prev" class = "button" > > </ion-button>
-        </ion-col>
-    </ion-row>
-  </ion-grid>
+  <!-- overlay UI -->
+  <div id="ui">
+    <div id="topbar">
+      <ion-searchbar
+        placeholder="Protein or PDB ID"
+        color="tertiary"
+        animated
+        [debounce]="0"
+        [(ngModel)]="searchQuery"
+        (ionInput)="onSearchInput($event)"
+        (search)="onSearch($event)"
+        id="searchText"></ion-searchbar>
 
-  <ion-grid id="info" slot="fixed">
-    <ion-row>
-            <h1>{{this.structureTitle}}</h1>
-    </ion-row>
-    <ion-row>
-            <p>{{this.structureDesc}}</p>
-    </ion-row>
-  </ion-grid>
-  <ion-grid>
-    <ion-row>
-      <ion-searchbar *ngIf="popSearch" placeholder="Protein Name or pdb ID" color = "tertiary" animated [(ngModel)]="searchQuery" 
-                      (search)="search($event,true)" id="searchText"></ion-searchbar>
-      <ion-button *ngIf="!favorite" (click)="addFavorite()" color = "tertiary" id="favorite">
-        <ion-icon  name="heart-outline"></ion-icon>
+      <ion-button
+        id="favorite"
+        (click)="toggleFavorite()"
+        color="tertiary"
+        aria-label="Toggle favorite">
+        <ion-icon [name]="favorite ? 'heart-sharp' : 'heart-outline'"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="favorite" (click)="removeFavorite()" color = "tertiary"  id="favorite">
-        <ion-icon  name="heart-sharp"></ion-icon>
-      </ion-button>
-    </ion-row>
-  </ion-grid>
+    </div>
+
+    <nav id="options" aria-label="Display style">
+      <ion-button (click)="cartoon()" color="tertiary">Cartoon</ion-button>
+      <ion-button (click)="lines()" color="tertiary">Lines</ion-button>
+      <ion-button (click)="spheres()" color="tertiary">Spheres</ion-button>
+      <ion-button (click)="ballsAndSticks()" color="tertiary">Balls and sticks</ion-button>
+    </nav>
+
+    <div id="navigate">
+      <ion-button (click)="prevPdb()" color="tertiary" aria-label="Previous structure">&lt;</ion-button>
+      <span id="counter">{{currentPdb}}/{{totalPdbs}}</span>
+      <ion-button (click)="nextPdb()" color="tertiary" aria-label="Next structure">&gt;</ion-button>
+    </div>
+
+    <div id="info">
+      <h1>{{structureTitle}}</h1>
+      <p>{{structureDesc}}</p>
+    </div>
+  </div>
 </ion-content>

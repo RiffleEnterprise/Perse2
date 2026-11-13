@@ -27,6 +27,9 @@ export class Tab2Page {
     private admob: AdMob) 
     {
       this.platform.ready().then(async () => {
+        if(!this.platform.is('hybrid')){
+          return
+        }
         await this.admob.start();
         this.admob.requestTrackingAuthorization()
         if(this.platform.is("ios")){

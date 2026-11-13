@@ -1,4 +1,4 @@
-import { Component,ElementRef, ViewChildren} from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import {PdbminerService} from '../services/pdbminer.service'
 import {Pdb} from '../data/pdb'
@@ -18,11 +18,7 @@ const pv= require('bio-pv/bio-pv.min')
 /*
 ----The viewer to display molecules----
 */
-export class Tab1Page {
-  @ViewChildren('searchText') searchText;
-  //attributes for this page
-  windownWidth: number;
-  windowHeight: number;
+export class Tab1Page implements OnDestroy {
   //all our pdb information
   structure:any;
   structureId = '4ubb';
@@ -40,8 +36,11 @@ export class Tab1Page {
   favorite:boolean;
   //keeps track if currently in loading mode
   loading:boolean = false;
-  //for a fix for search bar
-  popSearch:boolean = true;
+  private onResize = () => {
+    if(this.viewer){
+      this.viewer.fitParent()
+    }
+  };
   constructor(
     private favoriteService:FavoriteService, 
     private pdbminer:PdbminerService,
@@ -56,11 +55,21 @@ export class Tab1Page {
     if(this.platform.is('ipad')){
       outlineBool = false
     }
-    this.windowHeight = this.platform.height()
-    this.windownWidth = this.platform.width()
-    this.viewer = pv.Viewer(document.getElementById('viewer'), 
-    { quality : 'high', width: this.windownWidth, height : this.windowHeight-this.windowHeight*0.07,
+    const viewerElement = document.getElementById('viewer')
+    if(!viewerElement){
+      return
+    }
+    this.viewer = pv.Viewer(viewerElement,
+    { quality : 'high', width: this.platform.width(), height: this.platform.height(),
       antialias : true, outline : outlineBool});
+    window.addEventListener('resize', this.onResize)
+    window.addEventListener('orientationchange', this.onResize)
+    setTimeout(() => this.onResize(), 0)
+  }
+
+  ngOnDestroy(){
+    window.removeEventListener('resize', this.onResize)
+    window.removeEventListener('orientationchange', this.onResize)
   }
 
   async ionViewWillEnter(){
@@ -71,17 +80,33 @@ export class Tab1Page {
   }
 
   ionViewDidEnter(){
+    this.onResize()
     this._checkIfCurrentIsFavorite()
   }
 
-  async search(event, first: boolean){
+  onSearchInput(event: any){
+    this.searchQuery = (event && event.target && event.target.value) || ''
+  }
+
+  onSearch(event: any){
+    const value = (event && event.target && event.target.value) || this.searchQuery
+    this.search(value, true)
+  }
+
+  async search(value: string, first: boolean){
+    const query = (value || this.searchQuery || '').trim()
+    if(!query){
+      return
+    }
     this.loading = true
-    this.keyboard.hide()
+    if(this.platform.is('hybrid')){
+      this.keyboard.hide()
+    }
     try {
-      const response: any = await this.pdbminer.lookFor(this.searchQuery)
+      const response: any = await this.pdbminer.lookFor(query)
       if(!response || !response.result_set || response.result_set.length === 0){
         if(first){
-          setTimeout(() => {this.search(event,false)}, 3000);
+          setTimeout(() => {this.search(query,false)}, 3000);
         }
         else{
           await this.presentNoProtein()
@@ -106,15 +131,7 @@ export class Tab1Page {
     }
     finally {
       this.loading = false
-      this._popSearch()
     }
-  }
-    
-
-  _popSearch(){
-    console.log("popping")
-    this.popSearch =false
-    setTimeout(() => {this.popSearch = true}, 500);
   }
   
   _checkIfCurrentIsFavorite(){
@@ -252,6 +269,15 @@ export class Tab1Page {
     }
     catch(error){
       console.error('Unable to render structure', error)
+    }
+  }
+
+  async toggleFavorite(){
+    if(this.favorite){
+      await this.removeFavorite()
+    }
+    else{
+      await this.addFavorite()
     }
   }
 

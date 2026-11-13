@@ -1,136 +1,205 @@
-#viewer {
-    position:absolute;
-    top : 0px; 
-    left: 0px;
-    bottom : 0px;
-    right : 0px;
-    margin : 0px;
-    padding:0px;
-    overflow:hidden;
-  }
+:host {
+  --overlay-gap: 10px;
+  --tabbar-height: 57px;
+}
 
 ion-content {
-    --overflow: hidden;
-}
-#noI{
-    position: absolute;
-    top: 40%;
-    left: 30%;
-    width: 40%;
-    
-    visibility: hidden;
-    text-align: center;
-    color: #7452e4;
-
-}
-#noS{
-    text-align: center;
-    position: absolute;
-    top: 40%;
-    left: 30%;
-    width: 40%;
-    
-    visibility: hidden;
-    color: #7452e4;
-
-}
-#loading{
-    animation: rotation 2s infinite linear;
-    position: absolute;
-    visibility: hidden;
-    width: 10vw;
-    height: 10vw;
-    left: 45vw;
-    top: 40vh;
-  }
-  @keyframes rotation {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(359deg);
-    }
-  }
-#searchText{
-  position: absolute;
-  width:50vw;
-  top:1vh;
-  text-align: left;
-  left: 1vw;
-}
-#options{
-  position: absolute;
-  width:23vw;
-  right:1vw;
-  top:1vh;
-  height:100%;
-  align-content: left;
-  align-items: left;
-  justify-content: left;
-  text-align: center;
-}
-#navigate{
-  position: absolute;
-  width:23vw;
-  right:1vw;
-  bottom:-2vh;
-  align-content: left;
-  align-items: left;
-  justify-content: left;
-  text-align: center;
-}
-#next{
-  width:2vw;
-  margin: 1vw;
-}
-#prev{
-  width:2vw;
-  margin: 1vw;
-}
-#counter{
-  font-size: 2vw;
-  width: 6vw;
-  text-align: center;
+  --overflow: hidden;
 }
 
-#info{
-  color: black;
-  align-content: center;
-  text-align: left;
+#viewer {
   position: absolute;
-  bottom: 1vh;
-  left: 3vw;
-  width:30vw;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Overlay layer: transparent to input so the molecule can still be rotated. */
+#ui {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
   pointer-events: none;
 }
-.parent-row {
-  align-items: left !important;
-  justify-content: left !important;
-}
-#navigate-row{
-  top: 5vh;
-  //bottom: 5vh;
-}
-#favorite{
-  position: absolute;
-  top:2vh;
-  text-align: left;
-  left: 51vw;
+
+#ui > * {
+  pointer-events: auto;
 }
 
-.loading{
-  animation: rotation 2s infinite linear;
+/* ---------- Top bar: search + favorite ---------- */
+#topbar {
   position: absolute;
-  width: 10vw;
-  height: 10vw;
-  left: 45vw;
-  top: 40vh;
+  top: calc(var(--overlay-gap) + env(safe-area-inset-top, 0px));
+  left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+  right: calc(190px + var(--overlay-gap) + env(safe-area-inset-right, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
 }
+
+#searchText {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 640px;
+  padding: 0;
+  --background: var(--ion-color-tertiary);
+  --color: #fff;
+  --placeholder-color: rgba(255, 255, 255, 0.8);
+  --icon-color: #fff;
+  --border-radius: 10px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+#favorite {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  --border-radius: 12px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+/* ---------- Display-style controls ---------- */
+#options {
+  position: absolute;
+  top: calc(var(--overlay-gap) + env(safe-area-inset-top, 0px));
+  right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 15;
+}
+
+#options ion-button {
+  width: 100%;
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  --border-radius: 10px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+/* ---------- Structure navigation ---------- */
+#navigate {
+  position: absolute;
+  right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--tabbar-height) + var(--overlay-gap) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 15;
+}
+
+#navigate ion-button {
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  --border-radius: 10px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+#counter {
+  min-width: 46px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #111;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- Structure info ---------- */
+#info {
+  position: absolute;
+  left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+  bottom: calc(var(--tabbar-height) + var(--overlay-gap) + env(safe-area-inset-bottom, 0px));
+  width: min(34vw, 460px);
+  max-height: 30vh;
+  overflow: hidden;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(6px);
+  color: #111;
+  pointer-events: none;
+}
+
+#info h1 {
+  margin: 0 0 4px;
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#info p {
+  margin: 0;
+  color: #333;
+  font-size: clamp(11px, 1.1vw, 14px);
+  line-height: 1.35;
+}
+
+/* ---------- Loading ---------- */
+.loading {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: clamp(44px, 8vw, 84px);
+  height: clamp(44px, 8vw, 84px);
+  transform: translate(-50%, -50%);
+  animation: rotation 2s infinite linear;
+  z-index: 5;
+}
+
 @keyframes rotation {
-  from {
-    transform: rotate(0deg);
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(359deg); }
+}
+
+/* ---------- Narrow screens: controls move under the search bar ---------- */
+@media (max-width: 720px) {
+  #topbar {
+    right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
   }
-  to {
-    transform: rotate(359deg);
+
+  #searchText {
+    max-width: none;
+  }
+
+  #options {
+    top: calc(var(--overlay-gap) + 58px + env(safe-area-inset-top, 0px));
+    left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+    right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #options ion-button {
+    flex: 1 1 calc(50% - 6px);
+    width: auto;
+    min-width: 0;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  #info {
+    left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+    right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+    width: auto;
+    max-height: 22vh;
+    bottom: calc(var(--tabbar-height) + 64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #navigate {
+    left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+    right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+    justify-content: flex-end;
   }
 }
