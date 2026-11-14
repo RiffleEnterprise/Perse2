@@ -16,6 +16,9 @@
         [(ngModel)]="searchQuery"
         (ionInput)="onSearchInput($event)"
         (search)="onSearch($event)"
+        (keydown.enter)="onSearch($event)"
+        (keyup.enter)="onSearch($event)"
+        enterkeyhint="search"
         id="searchText"></ion-searchbar>
 
       <ion-button

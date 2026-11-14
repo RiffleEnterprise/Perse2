@@ -36,6 +36,8 @@ export class Tab1Page implements OnDestroy {
   favorite:boolean;
   //keeps track if currently in loading mode
   loading:boolean = false;
+  //guards against Enter firing more than one search event
+  private searchInFlight:boolean = false;
   private onResize = () => {
     if(this.viewer){
       this.viewer.fitParent()
@@ -89,7 +91,8 @@ export class Tab1Page implements OnDestroy {
   }
 
   onSearch(event: any){
-    const value = (event && event.target && event.target.value) || this.searchQuery
+    const targetValue = event && event.target && event.target.value
+    const value = this.searchQuery || targetValue || ''
     this.search(value, true)
   }
 
@@ -98,6 +101,10 @@ export class Tab1Page implements OnDestroy {
     if(!query){
       return
     }
+    if(this.searchInFlight){
+      return
+    }
+    this.searchInFlight = true
     this.loading = true
     if(this.platform.is('hybrid')){
       this.keyboard.hide()
@@ -122,14 +129,18 @@ export class Tab1Page implements OnDestroy {
       await this._checkIfCurrentIsFavorite()
     }
     catch(err){
-      if(err && err.status == 400){
+      if(err && (err.status === 400 || err.status === 404)){
         await this.presentNoProtein()
       }
-      else{
+      else if(err && err.status === 0){
         await this.presentNoInternet()
+      }
+      else{
+        await this.presentSearchUnavailable()
       }
     }
     finally {
+      this.searchInFlight = false
       this.loading = false
     }
   }
@@ -179,7 +190,13 @@ export class Tab1Page implements OnDestroy {
       xhr.onload = () => {
         try{
           if(xhr.status < 200 || xhr.status >= 300){
-            throw new Error('HTTP ' + xhr.status)
+            if(xhr.status === 404){
+              this.presentNoProtein()
+            }
+            else{
+              this.presentSearchUnavailable()
+            }
+            return
           }
           const splitResponse = xhr.responseText.split('\n')
           //need to write a custom rebuilder
@@ -190,7 +207,7 @@ export class Tab1Page implements OnDestroy {
           this.preset()
         }
         catch{
-          this.presentNoInternet()
+          this.presentSearchUnavailable()
         }
         finally {
           this.loading = false
@@ -299,8 +316,8 @@ export class Tab1Page implements OnDestroy {
 
   async presentNoInternet () {
     const alert = await this.alertController.create({
-      header: 'No Internet',
-      message: 'Can not establish an internet connection.',
+      header: 'No Internet Connection',
+      message: 'We could not reach the RCSB database. Check your internet connection and try again.',
       buttons: ['OK']
     });
     await alert.present();
@@ -311,7 +328,18 @@ export class Tab1Page implements OnDestroy {
   async presentNoProtein () {
     const alert = await this.alertController.create({
       header: 'Protein Not Found',
-      message: 'Your protein can no be found in the RCSB database.',
+      message: 'No structures matched your search in the RCSB database. Try another protein name or PDB ID.',
+      buttons: ['OK']
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    console.log('onDidDismiss resolved with role', role);
+  }
+
+  async presentSearchUnavailable () {
+    const alert = await this.alertController.create({
+      header: 'Search Unavailable',
+      message: 'The RCSB database is having trouble right now. Please try again in a moment.',
       buttons: ['OK']
     });
     await alert.present();

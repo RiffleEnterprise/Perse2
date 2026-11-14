@@ -27,7 +27,7 @@ export class PdbminerService {
       }).toPromise();
     }
     catch (error) {
-      if (error && error.status === 400) {
+      if (error && (error.status === 400 || error.status === 404)) {
         return null;
       }
       throw error;
