@@ -3,7 +3,11 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false
+  production: false,
+  rcsb: {
+    searchUrl: 'https://search.rcsb.org/rcsbsearch/v2/query',
+    structureUrl: 'https://files.rcsb.org/view'
+  }
 };
 
 /*
