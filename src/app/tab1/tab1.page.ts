@@ -6,6 +6,8 @@ import {FavoriteService} from '../services/favorite.service'
 import {PdbfocusService} from '../services/pdbfocus.service'
 import { AlertController } from '@ionic/angular';
 import { Keyboard } from '@ionic-native/keyboard/ngx';
+import { EMPTY, from, of, Subject } from 'rxjs';
+import { catchError, finalize, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 const pv= require('bio-pv/bio-pv.min')
 
 
@@ -38,6 +40,10 @@ export class Tab1Page implements OnDestroy {
   loading:boolean = false;
   //guards against Enter firing more than one search event
   private searchInFlight:boolean = false;
+  private lastQuery:string = '';
+  private searchToken:number = 0;
+  private searchTrigger = new Subject<string>();
+  private destroy$ = new Subject<void>();
   private onResize = () => {
     if(this.viewer){
       this.viewer.fitParent()
@@ -67,9 +73,49 @@ export class Tab1Page implements OnDestroy {
     window.addEventListener('resize', this.onResize)
     window.addEventListener('orientationchange', this.onResize)
     setTimeout(() => this.onResize(), 0)
+
+    // switchMap cancels the previous search when a new one is submitted.
+    this.searchTrigger.pipe(
+      switchMap(query => {
+        const token = ++this.searchToken
+        return this.pdbminer.search(query).pipe(
+          switchMap(response => {
+            if(token !== this.searchToken){
+              return EMPTY
+            }
+            if(!response || !response.result_set || response.result_set.length === 0){
+              return from(this.presentNoProtein())
+            }
+            this.results = response
+            this.totalPdbs = response.result_set.length
+            this.currentPdb = 1
+            this.structureId = response.result_set[0].identifier
+            this.pdbFocusService.setFocus(this.structureId)
+            return this.loadStructure$(this.structureId).pipe(
+              tap(() => this._checkIfCurrentIsFavorite())
+            )
+          }),
+          catchError(err => {
+            if(token === this.searchToken){
+              this.handleRequestError(err)
+            }
+            return EMPTY
+          }),
+          finalize(() => {
+            if(token === this.searchToken){
+              this.searchInFlight = false
+              this.loading = false
+            }
+          })
+        )
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe()
   }
 
   ngOnDestroy(){
+    this.destroy$.next()
+    this.destroy$.complete()
     window.removeEventListener('resize', this.onResize)
     window.removeEventListener('orientationchange', this.onResize)
   }
@@ -93,56 +139,51 @@ export class Tab1Page implements OnDestroy {
   onSearch(event: any){
     const targetValue = event && event.target && event.target.value
     const value = this.searchQuery || targetValue || ''
-    this.search(value, true)
-  }
-
-  async search(value: string, first: boolean){
-    const query = (value || this.searchQuery || '').trim()
+    const query = (value || '').trim()
     if(!query){
       return
     }
-    if(this.searchInFlight){
+    // keydown, keyup and the native search event can fire for a single Enter,
+    // so only submit again when the query actually changes.
+    const cacheKey = query.toLowerCase()
+    if(this.searchInFlight && cacheKey === this.lastQuery){
       return
     }
+    this.lastQuery = cacheKey
     this.searchInFlight = true
     this.loading = true
     if(this.platform.is('hybrid')){
       this.keyboard.hide()
     }
-    try {
-      const response: any = await this.pdbminer.lookFor(query)
-      if(!response || !response.result_set || response.result_set.length === 0){
-        if(first){
-          setTimeout(() => {this.search(query,false)}, 3000);
-        }
-        else{
-          await this.presentNoProtein()
-        }
-        return
-      }
-      this.results = response
-      this.totalPdbs = response.result_set.length
-      this.currentPdb = 1
-      this.structureId = response.result_set[0].identifier
-      this.pdbFocusService.setFocus(this.structureId)
-      await this.requestPDB()
-      await this._checkIfCurrentIsFavorite()
+    this.searchTrigger.next(query)
+  }
+
+  private handleRequestError(err: any){
+    if(err && (err.status === 400 || err.status === 404)){
+      return this.presentNoProtein()
     }
-    catch(err){
-      if(err && (err.status === 400 || err.status === 404)){
-        await this.presentNoProtein()
-      }
-      else if(err && err.status === 0){
-        await this.presentNoInternet()
-      }
-      else{
-        await this.presentSearchUnavailable()
-      }
+    if(err && err.status === 0){
+      return this.presentNoInternet()
     }
-    finally {
-      this.searchInFlight = false
-      this.loading = false
-    }
+    return this.presentSearchUnavailable()
+  }
+
+  private loadStructure$(structureId: string){
+    return this.pdbminer.getStructure(structureId).pipe(
+      map(pdbText => {
+        const splitResponse = pdbText.split('\n')
+        //need to write a custom rebuilder
+        this.structureTitle = this._removeDateFromTitle(this.cleanPDBInfo(splitResponse[0]))
+        this.structureDesc = this.cleanPDBInfo(splitResponse[1])
+        //----
+        this.structure = pv.io.pdb(pdbText)
+        this.preset()
+      }),
+      catchError(err => {
+        this.handleRequestError(err)
+        return of(undefined)
+      })
+    )
   }
   
   _checkIfCurrentIsFavorite(){
@@ -181,48 +222,14 @@ export class Tab1Page implements OnDestroy {
     return newTitle
   }
 
-  requestPDB(): Promise<void> {
+  async requestPDB(): Promise<void> {
     this.loading = true
-    return new Promise(resolve => {
-      const xhr = new XMLHttpRequest()
-      xhr.open('GET', 'https://files.rcsb.org/view/' + this.structureId + '.pdb')
-
-      xhr.onload = () => {
-        try{
-          if(xhr.status < 200 || xhr.status >= 300){
-            if(xhr.status === 404){
-              this.presentNoProtein()
-            }
-            else{
-              this.presentSearchUnavailable()
-            }
-            return
-          }
-          const splitResponse = xhr.responseText.split('\n')
-          //need to write a custom rebuilder
-          this.structureTitle = this._removeDateFromTitle(this.cleanPDBInfo(splitResponse[0]))
-          this.structureDesc = this.cleanPDBInfo(splitResponse[1])
-          //----
-          this.structure = pv.io.pdb(xhr.responseText)
-          this.preset()
-        }
-        catch{
-          this.presentSearchUnavailable()
-        }
-        finally {
-          this.loading = false
-          resolve()
-        }
-      }
-
-      xhr.onerror = () => {
-        this.loading = false
-        this.presentNoInternet()
-        resolve()
-      }
-
-      xhr.send()
-    })
+    try{
+      await this.loadStructure$(this.structureId).toPromise()
+    }
+    finally{
+      this.loading = false
+    }
   }
 
   async nextPdb(){
